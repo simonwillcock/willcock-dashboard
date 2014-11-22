@@ -1,0 +1,11 @@
+var config = {}
+
+config.db = {};
+
+config.db.host = '127.0.0.1';
+config.db.port = '27017';
+config.db.db_name = 'test';
+config.db.user_name = 'username';
+config.db.user_password = 'password';
+
+module.exports = config;
