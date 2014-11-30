@@ -1,0 +1,23 @@
+var config = {}
+
+config.db = {};
+
+config.db.host = '127.0.0.1';
+config.db.port = '27017';
+config.db.db_name = 'test';
+config.db.user_name = 'username';
+config.db.user_password = 'password';
+
+config.auth = {};
+
+config.auth.google : {
+	key: 'my_google_app_key',
+	secret: 'my_google_app_secret'
+};
+
+config.jwt = {};
+config.jwt.host = '0.0.0.0';
+config.jwt.port = '6380';
+config.jwt.secret = 'my-secret-key';
+
+module.exports = config;
