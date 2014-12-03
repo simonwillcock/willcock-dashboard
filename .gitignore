@@ -30,3 +30,4 @@ node_modules
 *.ini
 config.js
 *.sublime-*
+public/dist

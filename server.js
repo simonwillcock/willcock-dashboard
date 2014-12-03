@@ -7,8 +7,9 @@
 var express    = require('express')
 var app        = express();
 var bodyParser = require('body-parser');
-var config     = require('./app/config/config');
-var utils      = require('./app/utility');
+var config     = require('./api/config/config');
+var utils      = require('./api/utility');
+var jwt = require('jsonwebtoken');
 
 // Connect to DB
 var mongoose   = require('mongoose');
@@ -20,24 +21,27 @@ app.use(bodyParser.json());
 app.use('*', function (req, res, next) {
 	res.set('Access-Control-Allow-Credentials', true);
 	res.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, PUT');
-	res.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, Authorization');
+	res.set('Access-Control-Allow-Headers', 'X-Requested-With, Content-Type, X-Auth');
 	if ('OPTIONS' == req.method) return res.send(200);
 	next();
 });
 
+
 var port   = process.env.PORT || 8081;
 
 // Add models
-var Ticket = require('./app/models/tickets');
-var Blog = require('./app/models/blogs');
+var Ticket = require('./api/models/tickets');
+var Blog = require('./api/models/blogs');
+
 
 // ROUTES FOR OUR API
 //         ============
-var router = express.Router();
+var apiUnprotected = express.Router(),
+    apiProtected = express.Router();
+
 
 // middleware to use for all requests
-router.use(function(req, res, next){
-
+apiUnprotected.use(function(req, res, next){
 	// do logging
 	console.log('Something is happening');
 	next(); // make sure we go to the next routes and don't stop here
@@ -45,17 +49,18 @@ router.use(function(req, res, next){
 
 
 // test route to make sure everything is working
-router.get('/', function(req, res) {
+apiUnprotected.get('/', function(req, res) {
 	res.json({ message: 'hooray! Welcome to our API' });
 });
 
 // more routes here
-var blogController = require('./app/controllers/blogs');
-var ticketController = require('./app/controllers/tickets');
-var userController = require('./app/controllers/users');
+var blogController = require('./api/controllers/blogs');
+var ticketController = require('./api/controllers/tickets');
+var userController = require('./api/controllers/users');
+var sessionController = require('./api/controllers/sessions');
 
 // routes that end in /tickets
-router.route('/tickets')
+apiProtected.route('/tickets')
 
 	// create a ticket (accessed by POST /api/tickets)
 	.post(ticketController.postTicket)
@@ -64,7 +69,7 @@ router.route('/tickets')
 	.get(ticketController.getTickets);
 
 // routes that end in /tickets/:ticket_id
-router.route('/tickets/:ticket_id')
+apiProtected.route('/tickets/:ticket_id')
 
 	// get the ticket with that id (accessed at GET /api/tickets/:ticket_id)
 	.get(ticketController.getTicket)
@@ -78,47 +83,53 @@ router.route('/tickets/:ticket_id')
 
 
 // routes that end in /blogs
-router.route('/blogs')
-	// create a blog (accessed by POST /api/blogs)
-	.post(blogController.postBlog)
-
+apiUnprotected.route('/blogs')
 	// get all the blogs (accessed at GET /api/blogs)
 	.get(blogController.getBlogs);
 
+apiProtected.route('/blogs')
+  // create a blog (accessed by POST /api/blogs)
+  .post(blogController.postBlog)
 
 // routes that end in /blogs/:blog_id
-router.route('/blogs/:blog_id')
-
+apiUnprotected.route('/blogs/:blog_id')
 	// get the blog with that id (accessed at GET /api/blogs/:blog_id)
 	.get(blogController.getBlog)
 
-	// update the blog with this id (accessed at PUT /api/blogs/:blog_id)
-	.put(blogController.putBlog)
+	
+apiProtected.route('/blogs/:blog_id')
+  // update the blog with this id (accessed at PUT /api/blogs/:blog_id)
+  .put(blogController.putBlog)
 
-	// delete the blog with this id (accessed at DELETE /api/blogs/:blog_id)
-	.delete(blogController.deleteBlog);
+  // delete the blog with this id (accessed at DELETE /api/blogs/:blog_id)
+  .delete(blogController.deleteBlog);
+
 
 // routes that end in /users
-router.route('/users')
+apiUnprotected.route('/users')
 	// create a user (accessed by POST /api/users)
 	.post(userController.register)
 
-	// get all the users (accessed at GET /api/users)
-	.get(userController.getUsers);
+ 
+apiProtected.route('/users')
+  // get all the users (accessed at GET /api/users)
+  .get(userController.getUsers);
 
-router.route('/users/:user_id')
+apiProtected.route('/users/:user_id')
+	.get(userController.getUser)
 	.delete(userController.deleteUser);
 
-router.route('/login')
+apiUnprotected.route('/login')
 	.post(userController.login);
-router.route('/register')
+apiUnprotected.route('/register')
 	.post(userController.register);
-router.route('/logout')
+apiUnprotected.route('/logout')
 	.get(userController.logout);
 
 // REGISTER OUR ROUTES
 // all of our routes will be prefixed with /API
-app.use('/api', router);
+app.use('/api', apiUnprotected);
+app.use('/api', sessionController.verifyToken, apiProtected);
 
 // START THE SERVER
 // =============
